@@ -1,0 +1,91 @@
+---
+- hosts: all
+  become: true
+  tasks:
+  - name: Creates directory
+    file:
+      path: /usr/local/var/mongodb/pki/
+      state: directory
+      recurse: yes
+
+  - name: generate random password for user only on creation
+    shell: openssl rand -base64 741 > /usr/local/var/mongodb/pki/replicaset-keyfile
+
+  - name: Touch a file, using symbolic modes to set the permissions
+    ansible.builtin.file:
+      path: /usr/local/var/mongodb/pki/replicaset-keyfile
+      state: touch
+      mode: '0400' 
+    
+  - name: Creating Mongod config file
+    copy:
+      dest: "mongod.conf"
+      content: |
+        storage:
+          dbPath: /usr/local/var/mongodb/node1
+        net:
+          bindIp: localhost
+          port: 27011
+        security:
+          authorization: enabled
+          keyFile: /usr/local/var/mongodb/pki/replicaset-keyfile
+        systemLog:
+          destination: file
+          path: /usr/local/var/log/mongodb/node1/mongod.log
+          logAppend: true
+        processManagement:
+          fork: true
+        replication:
+          replSetName: replicaset-example
+          
+  - name: Creates directory
+    file:
+      path: /usr/local/var/mongodb/node1
+      state: directory
+      recurse: yes
+
+  - name: Creates directory
+    file:
+      path: /usr/local/var/log/mongodb/node1
+      state: directory
+      recurse: yes
+
+  - name: Runs mongod configuration
+    shell: mongod -f mongod.conf
+
+- hosts: primary_server
+  become: true
+  tasks:
+  - name: Add necessary files
+    template: 
+      src: "{{item}}.js.j2"
+      dest: "./{{item}}.js"
+    loop:
+      - initialreplica
+      - addMembers
+
+  - name: Check if admin user exsist
+    shell: mongo --port 27011 -u "test-user" -p "test-pass" --authenticationDatabase "admin" --eval "printjson(db.getUsers())"
+    register: user_admin_exists
+    ignore_errors: yes
+
+  - name: Add admin user
+    shell: mongo --port 27011 admin ./initialreplica.js
+    when: '"test-user" not in user_admin_exists.stdout'
+
+  - name: Add replicaset members on primary and makes primary as master
+    shell: mongo --host "replicaset-example/localhost:27011" -u "test-user" -p "test-pass" --authenticationDatabase "admin" ./addMembers.js
+    register: replicaset_status
+    failed_when:
+      - replicaset_status.rc != 0
+      - '"Authentication failed" not in replicaset_status.stdout'
+
+  - name: Remove files
+    file:
+      path: "./{{item}}.js"
+      state: absent
+    loop:
+      - initialreplica
+      - addMembers
+
+

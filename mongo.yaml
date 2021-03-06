@@ -1,0 +1,35 @@
+---
+- hosts: all
+  become: true
+  tasks:
+  - name: upgrade all packages
+    yum:
+      name: '*'
+      state: latest
+
+  - name: Creating mongodb repo
+    copy:
+      dest: "/etc/yum.repos.d/mongodb-org-4.2.repo"
+      content: |
+        [mongodb-org-4.2]
+        name=MongoDB Repository
+        baseurl=https://repo.mongodb.org/yum/amazon/2013.03/mongodb-org/4.2/x86_64/
+        gpgcheck=1
+        enabled=1
+        gpgkey=https://www.mongodb.org/static/pgp/server-4.2.asc
+
+  - name: Install mongodb
+    yum:
+      name: mongodb-org
+      state: present
+      ignore_errors: yes
+
+  - name: Start service mongodb
+    ansible.builtin.service:
+      name: mongod
+      state: started
+
+  - name: Enable service mongodb
+    ansible.builtin.service:
+      name: mongod
+      enabled: yes
