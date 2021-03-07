@@ -79,7 +79,7 @@
       - '"Authentication failed" not in replicaset_status.stdout'
   
   - name: Init replicaset on primary 
-    shell:  mongo --host "replicaset-example/localhost:27011"  ./initReplicaset.js
+    shell:  mongo --port 27011 ./initialreplica.js
     when: 
       - '"PRIMARY" not in replicaset_status.stdout'
 
@@ -89,7 +89,7 @@
     ignore_errors: yes
 
   - name: Add admin user
-    shell: mongo --host "replicaset-example/localhost:27011" admin ./createAdmin.js
+    shell: mongo --port 27011 admin ./createAdmin.js
     when: '"test-user" not in user_admin_exists.stdout'
 
   - name: Check if secondary are added
