@@ -49,9 +49,14 @@
       path: /usr/local/var/log/mongodb/node1
       state: directory
       recurse: yes
+  - name: Check if MongoDB already started
+    command: mongo --port 27011 {{ inventory_hostname }} --eval "printjson(db.runCommand('ping'))"
+    register: check_mongo
+    ignore_errors: yes
 
   - name: Runs mongod configuration
     shell: mongod -f mongod.conf
+    when: check_mongo.rc != 0
 
 - hosts: primary_server
   become: true
