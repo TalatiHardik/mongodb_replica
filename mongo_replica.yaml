@@ -50,7 +50,7 @@
       state: directory
       recurse: yes
   - name: Check if MongoDB already started
-    command: mongo --port 27011 {{ inventory_hostname }} --eval "printjson(db.runCommand('ping'))"
+    command: mongo --host "{{ inventory_hostname }}:27011" --eval "printjson(db.runCommand('ping'))"
     register: check_mongo
     ignore_errors: yes
 
@@ -79,7 +79,7 @@
       - '"Authentication failed" not in replicaset_status.stdout'
   
   - name: Init replicaset on primary 
-    shell:  mongo --port 27011 ./initialreplica.js
+    shell:  mongo --host "{{ inventory_hostname }}:27011" ./initialreplica.js
     when: 
       - '"PRIMARY" not in replicaset_status.stdout'
 
@@ -89,7 +89,7 @@
     ignore_errors: yes
 
   - name: Add admin user
-    shell: mongo --port 27011 admin ./createAdmin.js
+    shell: mongo --host "{{ inventory_hostname }}:27011" admin ./createAdmin.js
     when:
        - user_admin_exists.rc != 0
 
