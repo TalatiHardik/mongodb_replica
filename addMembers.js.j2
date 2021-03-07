@@ -1,4 +1,3 @@
-rs.initiate()
 rs.isMaster()
 {% for secondary in groups['secondary_server'] %}
 rs.add("{{ secondary }}:27011")

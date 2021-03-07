@@ -68,22 +68,39 @@
     loop:
       - initialreplica
       - addMembers
+      - createAdmin
+
+  - name: Init replicaset on primary with admin user if exsist
+    shell:  mongo --host "replicaset-example/localhost:27011" -u "test-user" -p "test-pass" --authenticationDatabase "admin"  ./initReplicaset.js
+    register: replicaset_status
+    ignore_errors: yes
+    failed_when:
+      - replicaset_status.rc != 0
+      - '"Authentication failed" not in replicaset_status.stdout'
+  
+  - name: Init replicaset on primary 
+    shell:  mongo --host "replicaset-example/localhost:27011"  ./initReplicaset.js
+    when: 
+      - '"PRIMARY" not in replicaset_status.stdout'
 
   - name: Check if admin user exsist
-    shell: mongo --port 27011 -u "test-user" -p "test-pass" --authenticationDatabase "admin" --eval "printjson(db.getUsers())"
+    shell: mongo --host "replicaset-example/localhost:27011" -u "test-user" -p "test-pass" --authenticationDatabase "admin" --eval "printjson(db.getUsers())"
     register: user_admin_exists
     ignore_errors: yes
 
   - name: Add admin user
-    shell: mongo --port 27011 admin ./initialreplica.js
+    shell: mongo --host "replicaset-example/localhost:27011" admin ./createAdmin.js
     when: '"test-user" not in user_admin_exists.stdout'
 
-  - name: Add replicaset members on primary and makes primary as master
+  - name: Check if secondary are added
+    shell: mongo --host "replicaset-example/localhost:27011" -u "test-user" -p "test-pass" --authenticationDatabase "admin" --eval "printjson(rs.status())"
+    register: secondary_status
+    ignore_errors: yes
+
+  - name: Add replicaset members on primary 
     shell: mongo --host "replicaset-example/localhost:27011" -u "test-user" -p "test-pass" --authenticationDatabase "admin" ./addMembers.js
-    register: replicaset_status
-    failed_when:
-      - replicaset_status.rc != 0
-      - '"Authentication failed" not in replicaset_status.stdout'
+    register: secondary_status
+    when: '"SECONDARY" not in secondary_status'
 
   - name: Remove files
     file:
@@ -92,5 +109,4 @@
     loop:
       - initialreplica
       - addMembers
-
-
+      - createAdmin
