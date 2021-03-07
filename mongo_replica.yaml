@@ -24,7 +24,7 @@
         storage:
           dbPath: /usr/local/var/mongodb/node1
         net:
-          bindIp: localhost
+          bindIp: {{ inventory_hostname }}
           port: 27011
         security:
           authorization: enabled
@@ -71,7 +71,7 @@
       - createAdmin
 
   - name: Init replicaset on primary with admin user if exsist
-    shell:  mongo --host "replicaset-example/localhost:27011" -u "test-user" -p "test-pass" --authenticationDatabase "admin"  ./initReplicaset.js
+    shell:  mongo --host "replicaset-example/{{ inventory_hostname }}:27011" -u "test-user" -p "test-pass" --authenticationDatabase "admin"  ./initialreplica.js
     register: replicaset_status
     ignore_errors: yes
     failed_when:
@@ -84,21 +84,22 @@
       - '"PRIMARY" not in replicaset_status.stdout'
 
   - name: Check if admin user exsist
-    shell: mongo --host "replicaset-example/localhost:27011" -u "test-user" -p "test-pass" --authenticationDatabase "admin" --eval "printjson(db.getUsers())"
+    shell: mongo --host "replicaset-example/{{ inventory_hostname }}:27011" -u "test-user" -p "test-pass" --authenticationDatabase "admin" --eval "printjson(db.getUsers())"
     register: user_admin_exists
     ignore_errors: yes
 
   - name: Add admin user
     shell: mongo --port 27011 admin ./createAdmin.js
-    when: '"test-user" not in user_admin_exists.stdout'
+    when:
+       - user_admin_exists.rc != 0
 
   - name: Check if secondary are added
-    shell: mongo --host "replicaset-example/localhost:27011" -u "test-user" -p "test-pass" --authenticationDatabase "admin" --eval "printjson(rs.status())"
+    shell: mongo --host "replicaset-example/{{ inventory_hostname }}:27011" -u "test-user" -p "test-pass" --authenticationDatabase "admin" --eval "printjson(rs.status())"
     register: secondary_status
     ignore_errors: yes
 
   - name: Add replicaset members on primary 
-    shell: mongo --host "replicaset-example/localhost:27011" -u "test-user" -p "test-pass" --authenticationDatabase "admin" ./addMembers.js
+    shell: mongo --host "replicaset-example/{{ inventory_hostname }}:27011" -u "test-user" -p "test-pass" --authenticationDatabase "admin" ./addMembers.js
     register: secondary_status
     when: '"SECONDARY" not in secondary_status'
 
