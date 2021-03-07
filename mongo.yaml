@@ -22,7 +22,6 @@
     yum:
       name: mongodb-org
       state: present
-      ignore_errors: yes
 
   - name: Start service mongodb
     ansible.builtin.service:
