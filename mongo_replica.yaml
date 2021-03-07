@@ -89,7 +89,7 @@
     ignore_errors: yes
 
   - name: Add admin user
-    shell: mongo --host "{{ inventory_hostname }}:27011" admin ./createAdmin.js
+    shell: mongo --host "replicaset-example/{{ inventory_hostname }}:27011" admin ./createAdmin.js
     when:
        - user_admin_exists.rc != 0
 
