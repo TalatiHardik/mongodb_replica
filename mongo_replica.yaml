@@ -1,4 +1,18 @@
 ---
+
+
+- hosts: primary_server
+  become: true
+  tasks:
+  - name: generate random password for user only on creation
+    shell: openssl rand -base64 741 > /usr/local/var/mongodb/pki/replicaset-keyfile
+    
+  - name: Touch a file, using symbolic modes to set the permissions
+    ansible.builtin.file:
+      path: /usr/local/var/mongodb/pki/replicaset-keyfile
+      state: touch
+      mode: '0400' 
+
 - hosts: all
   become: true
   tasks:
@@ -8,14 +22,12 @@
       state: directory
       recurse: yes
 
-  - name: generate random password for user only on creation
-    shell: openssl rand -base64 741 > /usr/local/var/mongodb/pki/replicaset-keyfile
-
-  - name: Touch a file, using symbolic modes to set the permissions
-    ansible.builtin.file:
-      path: /usr/local/var/mongodb/pki/replicaset-keyfile
-      state: touch
-      mode: '0400' 
+  - name: Copy mongodb keyfile from primary to secondary
+    synchronize:
+      src: /usr/local/var/mongodb/pki/replicaset-keyfile
+      dest: /usr/local/var/mongodb/pki/replicaset-keyfile
+    delegate_to: primary_server
+    when: "{{ inventory_hostname }} not in groups['primary_server']"  
     
   - name: Creating Mongod config file
     copy:
