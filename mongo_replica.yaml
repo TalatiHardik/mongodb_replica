@@ -4,31 +4,33 @@
 - hosts: primary_server
   become: true
   tasks:
-  - name: generate random password for user only on creation
-    shell: openssl rand -base64 741 > /usr/local/var/mongodb/pki/replicaset-keyfile
-    
-  - name: Touch a file, using symbolic modes to set the permissions
-    ansible.builtin.file:
-      path: /usr/local/var/mongodb/pki/replicaset-keyfile
-      state: touch
-      mode: '0400' 
 
-- hosts: all
-  become: true
-  tasks:
   - name: Creates directory
     file:
       path: /usr/local/var/mongodb/pki/
       state: directory
       recurse: yes
+  - name: generate random password for user only on creation
+    shell: openssl rand -base64 741 > /usr/local/var/mongodb/pki/replicaset-keyfile
 
-  - name: Copy mongodb keyfile from primary to secondary
-    synchronize:
+  - name: Touch a file, using symbolic modes to set the permissions
+    ansible.builtin.file:
+      path: /usr/local/var/mongodb/pki/replicaset-keyfile
+      state: touch
+      mode: '0755'
+
+  - name: copy replica file
+    copy:
       src: /usr/local/var/mongodb/pki/replicaset-keyfile
-      dest: /usr/local/var/mongodb/pki/replicaset-keyfile
-    delegate_to: primary_server
-    when: "{{ inventory_hostname }} not in groups['primary_server']"  
-    
+      dest: /home/ec2-user/mongodb_replica/replicaset-keyfile
+
+
+  - name: Touch a file, using symbolic modes to set the permissions
+    ansible.builtin.file:
+      path: /usr/local/var/mongodb/pki/replicaset-keyfile
+      state: touch
+      mode: '0400'
+
   - name: Creating Mongod config file
     copy:
       dest: "mongod.conf"
@@ -49,7 +51,71 @@
           fork: true
         replication:
           replSetName: replicaset
-          
+
+  - name: Creates directory
+    file:
+      path: /usr/local/var/mongodb/node1
+      state: directory
+      recurse: yes
+
+  - name: Creates directory
+    file:
+      path: /usr/local/var/log/mongodb/node1
+      state: directory
+      recurse: yes
+  - name: Check if MongoDB already started
+    command: mongo --host "{{ inventory_hostname }}:27011" --eval "printjson(db.runCommand('ping'))"
+    register: check_mongo
+    ignore_errors: yes
+
+  - name: Runs mongod configuration
+    shell: mongod -f mongod.conf
+    when: check_mongo.rc != 0
+
+
+
+- hosts: secondary_server
+  become: true
+  tasks:
+  - name: Creates directory
+    file:
+      path: /usr/local/var/mongodb/pki/
+      state: directory
+      recurse: yes
+
+  - name: copy replica file
+    copy:
+      src: replicaset-keyfile
+      dest: /usr/local/var/mongodb/pki/replicaset-keyfile
+
+
+  - name: Touch a file, using symbolic modes to set the permissions
+    ansible.builtin.file:
+      path: /usr/local/var/mongodb/pki/replicaset-keyfile
+      state: touch
+      mode: '0400'
+
+  - name: Creating Mongod config file
+    copy:
+      dest: "mongod.conf"
+      content: |
+        storage:
+          dbPath: /usr/local/var/mongodb/node1
+        net:
+          bindIp: {{ inventory_hostname }}  , 127.0.0.1
+          port: 27011
+        security:
+          authorization: enabled
+          keyFile: /usr/local/var/mongodb/pki/replicaset-keyfile
+        systemLog:
+          destination: file
+          path: /usr/local/var/log/mongodb/node1/mongod.log
+          logAppend: true
+        processManagement:
+          fork: true
+        replication:
+          replSetName: replicaset
+
   - name: Creates directory
     file:
       path: /usr/local/var/mongodb/node1
@@ -74,7 +140,7 @@
   become: true
   tasks:
   - name: Add necessary files
-    template: 
+    template:
       src: "{{item}}.js.j2"
       dest: "./{{item}}.js"
     loop:
@@ -89,10 +155,10 @@
     failed_when:
       - replicaset_status.rc != 0
       - '"Authentication failed" not in replicaset_status.stdout'
-  
-  - name: Init replicaset on primary 
+
+  - name: Init replicaset on primary
     shell:  mongo --host "127.0.0.1:27011" ./initialreplica.js
-    when: 
+    when:
       - '"PRIMARY" not in replicaset_status.stdout'
 
   - name: Check if admin user exsist
@@ -110,7 +176,7 @@
     register: secondary_status
     ignore_errors: yes
 
-  - name: Add replicaset members on primary 
+  - name: Add replicaset members on primary
     shell: mongo --host "replicaset/{{ inventory_hostname }}:27011" -u "test-user" -p "test-pass" --authenticationDatabase "admin" ./addMembers.js
     register: secondary_status
     when: '"SECONDARY" not in secondary_status'
@@ -123,3 +189,4 @@
       - initialreplica
       - addMembers
       - createAdmin
+
