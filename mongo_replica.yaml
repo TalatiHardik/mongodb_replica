@@ -79,7 +79,7 @@
       - '"Authentication failed" not in replicaset_status.stdout'
   
   - name: Init replicaset on primary 
-    shell:  mongo --host "{{ inventory_hostname }}:27011" ./initialreplica.js
+    shell:  mongo --host "127.0.0.1:27011" ./initialreplica.js
     when: 
       - '"PRIMARY" not in replicaset_status.stdout'
 
@@ -89,7 +89,7 @@
     ignore_errors: yes
 
   - name: Add admin user
-    shell: mongo --host "{{ inventory_hostname }}:27011" admin ./createAdmin.js
+    shell: mongo --host "127.0.0.1:27011" admin ./createAdmin.js
     when:
        - user_admin_exists.rc != 0
 
