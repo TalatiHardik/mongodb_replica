@@ -24,7 +24,7 @@
         storage:
           dbPath: /usr/local/var/mongodb/node1
         net:
-          bindIp: {{ inventory_hostname }}  
+          bindIp: {{ inventory_hostname }}  , 127.0.0.1
           port: 27011
         security:
           authorization: enabled

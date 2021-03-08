@@ -1,2 +1,2 @@
-rs.initiate( { _id: "replicaset", version: 1,members: [  { _id: 0, host : " {{ inventory_hostname }} :27011" },    ]   })
+rs.initiate({ _id: "replicaset",members: [  { _id: 0, host : "{{ inventory_hostname }}:27011" }    ]   })
 printjson(rs.status())
