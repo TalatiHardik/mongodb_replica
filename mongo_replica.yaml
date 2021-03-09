@@ -1,6 +1,4 @@
 ---
-
-
 - hosts: primary_server
   become: true
   tasks:

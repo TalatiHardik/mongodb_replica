@@ -1,0 +1,28 @@
+---
+- hosts: primary_server
+  become: true
+  tasks:
+
+  - name: Verify DB user already exists
+    shell: mongo --host "replicaset/{{ inventory_hostname }}:27011" -u "test-user" -p "test-pass" --authenticationDatabase "admin" --eval "printjson(db.getUsers())"
+    register: db_user_exists
+    ignore_errors: yes
+
+  - name: Add necessary file
+    template: 
+      src: "createUser.js.j2"
+      dest: "./createUser.js"
+    when: "monitoring_db_user_name not in db_user_exists.stdout"
+
+  - name: Create database user on primary 
+    shell: mongo --host "replicaset/{{ inventory_hostname }}:27011" -u "test-user" -p "test-pass" --authenticationDatabase "admin" admin ./createUser.js
+    when: "monitoring_db_user_name not in db_user_exists.stdout"
+
+  - name: Remove file
+    file:
+      path: "createUser.js"
+      state: absent
+    when: "monitoring_db_user_name not in db_user_exists.stdout"
+
+
+     
