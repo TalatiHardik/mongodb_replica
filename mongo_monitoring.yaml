@@ -30,14 +30,14 @@
 
   - name: install docker
     yum:
-      name='docker'
-      state=latest
+      name : docker
+      state : latest
 
   - name: service docker
     service:
-      name=docker
-      state=started
-      enabled=yes
+      name : docker
+      state : started
+      enabled : yes
 
   - name: Start the Docker daemon
     systemd:
@@ -71,3 +71,30 @@
   - name: Change password
     shell: docker exec -t pmm-server bash -c  'ln -s /srv/grafana /usr/share/grafana/data; grafana-cli --homepath /usr/share/grafana admin reset-admin-password {{ monitoring_password }}'
      
+- hosts: primary_server
+  become: true
+  tasks:
+
+  - name: install gnupg2
+    yum:
+      name: gnupg2
+      state: present
+      update_cache: true
+
+  - name: Deploy the GPG public key 
+    rpm_key:
+      key: https://repo.percona.com/yum/RPM-GPG-KEY-Percona
+      state: present
+
+  - name: Instal percona 
+    yum:
+      name: https://repo.percona.com/yum/percona-release-latest.noarch.rpm
+      enabled: yes
+      state: present
+
+  - name: Install percona client
+    yum:
+      name: pmm2-client
+      state: present
+      update_cache: true
+
