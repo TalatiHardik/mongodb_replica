@@ -160,7 +160,7 @@
       - '"PRIMARY" not in replicaset_status.stdout'
 
   - name: Check if admin user exsist
-    shell: mongo --host "replicaset/{{ inventory_hostname }}:27011" -u "test-user" -p "test-pass" --authenticationDatabase "admin" --eval "printjson(db.getUsers())"
+    shell: mongo --host "replicaset/{{ inventory_hostname }}:27011" -u "test-user" -p "test-pass" --authenticationDatabase "admin" admin --eval "printjson(db.getUsers())"
     register: user_admin_exists
     ignore_errors: yes
 

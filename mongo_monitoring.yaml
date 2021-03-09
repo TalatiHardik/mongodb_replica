@@ -4,7 +4,7 @@
   tasks:
 
   - name: Verify DB user already exists
-    shell: mongo --host "replicaset/{{ inventory_hostname }}:27011" -u "test-user" -p "test-pass" --authenticationDatabase "admin" --eval "printjson(db.getUsers())"
+    shell: mongo --host "replicaset/{{ inventory_hostname }}:27011" -u "test-user" -p "test-pass" --authenticationDatabase "admin" admin --eval "printjson(db.getUsers())"
     register: db_user_exists
     ignore_errors: yes
 
@@ -24,5 +24,38 @@
       state: absent
     when: "monitoring_db_user_name not in db_user_exists.stdout"
 
+- hosts: monitoring_server
+  become: true
+  tasks:
+  - name: Install docker
+    yum:
+      name: docker.io
+      state: present
+      update_cache: true
 
+  - name: Check docker installation_status
+    shell: docker ps
+    register: process_exists
+    ignore_errors: yes
+
+  - name: Create data container
+    shell: docker create -v /srv --name pmm-data  percona/pmm-server:2 /bin/true
+    when: "'pmm-server' not in process_exists.stdout"
+
+  - name: Run server
+    shell: docker run -d -p 8080:80 -p 8443:443 --volumes-from pmm-data --name pmm-server --restart always percona/pmm-server:2
+    when: "'pmm-server' not in process_exists.stdout"
+
+  - name: Verify installation
+    uri:
+      url: "https://{{ inventory_hostname }}:8443"
+      validate_certs: no
+      return_content: yes
+    register: installation_status
+    failed_when: "'grafana-app' not in installation_status.content"
+    retries: 3
+    delay: 3
+
+  - name: Change password
+    shell: docker exec -t pmm-server bash -c  'ln -s /srv/grafana /usr/share/grafana/data; grafana-cli --homepath /usr/share/grafana admin reset-admin-password {{ monitoring_password }}'
      
