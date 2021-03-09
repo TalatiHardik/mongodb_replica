@@ -27,12 +27,23 @@
 - hosts: monitoring_server
   become: true
   tasks:
-  - name: Install docker
-    yum:
-      name: docker.io
-      state: present
-      update_cache: true
 
+  - name: install docker
+    yum:
+      name='docker'
+      state=latest
+
+  - name: service docker
+    service:
+      name=docker
+      state=started
+      enabled=yes
+
+  - name: Start the Docker daemon
+    systemd:
+      name: docker
+      state: started
+      masked: no
   - name: Check docker installation_status
     shell: docker ps
     register: process_exists
@@ -48,7 +59,8 @@
 
   - name: Verify installation
     uri:
-      url: "https://{{ inventory_hostname }}:8443"
+      url: "https://{{ inventory_hostname }}:8443/graph/login"
+      follow_redirects: none
       validate_certs: no
       return_content: yes
     register: installation_status
